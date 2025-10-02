@@ -32,6 +32,12 @@ Features
 - Volume percentage
 - WiFi signal percentage and ESSID
 
+Patches
+-------
+- Added compatibility with i3bar JSON protocol; only foreground 
+and background colours currently supported.
+- SIGTSTP and SIGCONT supported, decreasing CPU usage when bar is hidden.
+
 
 Requirements
 ------------
