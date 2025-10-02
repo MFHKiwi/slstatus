@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <X11/Xlib.h>
+#include <unistd.h>
 
 #include "arg.h"
 #include "slstatus.h"
@@ -15,6 +16,7 @@ struct arg {
 	const char *(*func)(const char *);
 	const char *fmt;
 	const char *args;
+	const char *fg;
 };
 
 char buf[1024];
@@ -26,8 +28,19 @@ static Display *dpy;
 static void
 terminate(const int signo)
 {
+	if (signo == SIGTSTP)
+	{
+		pause();
+		return;
+	}
+	if (signo == SIGCONT)
+	{
+		return;
+	}
 	if (signo != SIGUSR1)
+	{
 		done = 1;
+	}
 }
 
 static void
@@ -53,6 +66,7 @@ main(int argc, char *argv[])
 	int sflag, ret;
 	char status[MAXLEN];
 	const char *res;
+	const char *fgcolor;
 
 	sflag = 0;
 	ARGBEGIN {
@@ -76,11 +90,15 @@ main(int argc, char *argv[])
 	act.sa_handler = terminate;
 	sigaction(SIGINT,  &act, NULL);
 	sigaction(SIGTERM, &act, NULL);
+	sigaction(SIGTSTP, &act, NULL);
+	sigaction(SIGCONT, &act, NULL);
 	act.sa_flags |= SA_RESTART;
-	sigaction(SIGUSR1, &act, NULL);
 
 	if (!sflag && !(dpy = XOpenDisplay(NULL)))
 		die("XOpenDisplay: Failed to open display");
+
+	puts("{ \"version\": 1, \"stop_signal\": 20, \"cont_signal\": 18 }");
+	puts("[");
 
 	do {
 		if (clock_gettime(CLOCK_MONOTONIC, &start) < 0)
@@ -91,15 +109,46 @@ main(int argc, char *argv[])
 			if (!(res = args[i].func(args[i].args)))
 				res = unknown_str;
 
+			if (!(fgcolor = args[i].fg))
+				fgcolor = "#ffffff";
+
+			if ((ret = esnprintf(status + len, sizeof(status) - len,
+                                             "%s", "{\"full_text\":\"")) < 0)
+                                break;
+			
+			len += ret;
+
 			if ((ret = esnprintf(status + len, sizeof(status) - len,
 			                     args[i].fmt, res)) < 0)
 				break;
 
 			len += ret;
+
+			if ((ret = esnprintf(status + len, sizeof(status) - len,
+                                             "%s", "\",\"color\":\"")) < 0)
+                                break;
+
+                        len += ret;
+
+			if ((ret = esnprintf(status + len, sizeof(status) - len,
+                                             "%s", fgcolor)) < 0)
+                                break;
+
+                        len += ret;
+
+			if ((ret = esnprintf(status + len, sizeof(status) - len,
+                                             "%s", "\"},")) < 0)
+                                break;
+
+			len += ret;
 		}
+		
+		status[len - 1] = '\0';
 
 		if (sflag) {
+			puts("[");
 			puts(status);
+			puts("],");
 			fflush(stdout);
 			if (ferror(stdout))
 				die("puts:");
