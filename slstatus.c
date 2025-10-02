@@ -17,6 +17,7 @@ struct arg {
 	const char *fmt;
 	const char *args;
 	const char *fg;
+	const char *bg;
 };
 
 char buf[1024];
@@ -67,6 +68,7 @@ main(int argc, char *argv[])
 	char status[MAXLEN];
 	const char *res;
 	const char *fgcolor;
+	const char *bgcolor;
 
 	sflag = 0;
 	ARGBEGIN {
@@ -112,6 +114,9 @@ main(int argc, char *argv[])
 			if (!(fgcolor = args[i].fg))
 				fgcolor = "#ffffff";
 
+			if (!(bgcolor = args[i].bg))
+                                bgcolor = "#000000";
+
 			if ((ret = esnprintf(status + len, sizeof(status) - len,
                                              "%s", "{\"full_text\":\"")) < 0)
                                 break;
@@ -132,6 +137,18 @@ main(int argc, char *argv[])
 
 			if ((ret = esnprintf(status + len, sizeof(status) - len,
                                              "%s", fgcolor)) < 0)
+                                break;
+
+                        len += ret;
+
+			if ((ret = esnprintf(status + len, sizeof(status) - len,
+                                             "%s", "\",\"background\":\"")) < 0)
+                                break;
+
+                        len += ret;
+
+			if ((ret = esnprintf(status + len, sizeof(status) - len,
+                                             "%s", bgcolor)) < 0)
                                 break;
 
                         len += ret;
